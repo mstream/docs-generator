@@ -12,15 +12,22 @@ to generate this file without the comments in this block.
 -}
 { name = "my-project"
 , dependencies =
-  [ "console"
+  [ "arrays"
+  , "console"
   , "effect"
+  , "foldable-traversable"
   , "free"
   , "freer-free"
+  , "language-cst-parser"
   , "lists"
   , "node-buffer"
   , "node-child-process"
+  , "ordered-collections"
+  , "partial"
   , "prelude"
   , "psci-support"
+  , "strings"
+  , "tidy-codegen"
   , "transformers"
   , "tuples"
   ]

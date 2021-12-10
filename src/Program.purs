@@ -1,4 +1,4 @@
-module Program where
+module Program (Program, ProgramF, f, run) where
 
 import Prelude
 import Control.Monad.Writer.Trans (WriterT, runWriterT, tell)
@@ -9,7 +9,7 @@ import Control.Monad.Freer.Free
   , constructors
   , interpreter
   )
-
+import Step (Step, step)
 import Effect (Effect)
 import Node.Buffer (toString)
 import Data.Generic.Rep (class Generic)
@@ -28,13 +28,6 @@ derive instance Generic (ProgramF a) _
 
 type Program = Free ProgramF
 
-newtype Step = Step { input ∷ String, output ∷ String }
-
-derive instance Generic Step _
-
-instance Show Step where
-  show = genericShow
-
 interpret ∷ ProgramF ~> WriterT (List Step) Effect
 interpret = interpreter { command }
 
@@ -42,7 +35,7 @@ command ∷ String → WriterT (List Step) Effect String
 command input = do
   outputBuffer ← lift $ execSync input defaultExecSyncOptions
   output ← lift $ toString UTF8 outputBuffer
-  tell $ List.fromFoldable [ Step { input, output } ]
+  tell $ List.fromFoldable [ step { input, output } ]
   pure output
 
 f ∷ Constructors ProgramF Program

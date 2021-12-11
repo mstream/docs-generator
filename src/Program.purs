@@ -1,47 +1,48 @@
-module Program (Program, ProgramF, f, run) where
+module Program
+  ( BashCommand(..)
+  , Program
+  , ProgramF(..)
+  , f
+  ) where
 
 import Prelude
-import Control.Monad.Writer.Trans (WriterT, runWriterT, tell)
-import Data.Tuple (Tuple(Tuple))
-import Control.Monad.Free (Free, foldFree, liftF)
-import Control.Monad.Freer.Free
-  ( Constructors
-  , constructors
-  , interpreter
-  )
-import Step (Step, step)
-import Effect (Effect)
-import Node.Buffer (toString)
+import Output (class Codable, encode)
+import Data.Either (Either(Left))
+import Data.Codec (basicCodec)
+import Control.Monad.Free (Free, liftF)
+import Control.Monad.Freer.Free (Constructors, constructors)
 import Data.Generic.Rep (class Generic)
-import Data.List (List)
-import Data.List as List
-import Data.Show.Generic (genericShow)
-import Node.ChildProcess (defaultExecSyncOptions, execSync)
-import Node.Encoding (Encoding(UTF8))
-import Control.Monad.Trans.Class (lift)
+
+data BashCommand
+  = Date
+  | Echo String
+
+derive instance Generic BashCommand _
+
+instance Codable String BashCommand where
+  codec = basicCodec
+    (const $ Left "parsing error")
+    ( case _ of
+        Date → "date"
+        Echo s → "echo " <> s
+    )
 
 data ProgramF a
-  = Command String (String → a)
+  = Bash BashCommand (String → a)
+  | Comment String a
+
+instance Codable String (ProgramF a) where
+  codec = basicCodec
+    (const $ Left "parsing error")
+    ( case _ of
+        Bash command _ → "bash -c \"" <> encode command <> "\""
+        _ → mempty
+    )
 
 derive instance Functor ProgramF
 derive instance Generic (ProgramF a) _
 
 type Program = Free ProgramF
 
-interpret ∷ ProgramF ~> WriterT (List Step) Effect
-interpret = interpreter { command }
-
-command ∷ String → WriterT (List Step) Effect String
-command input = do
-  outputBuffer ← lift $ execSync input defaultExecSyncOptions
-  output ← lift $ toString UTF8 outputBuffer
-  tell $ List.fromFoldable [ step { input, output } ]
-  pure output
-
 f ∷ Constructors ProgramF Program
 f = constructors (liftF ∷ ProgramF ~> Program)
-
-run ∷ Program Unit → Effect (List Step)
-run program = do
-  Tuple _ steps ← runWriterT $ foldFree interpret program
-  pure steps

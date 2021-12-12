@@ -90,5 +90,6 @@ f = constructors (liftF ∷ ProgramF ~> Program)
 bashVersionResponseParser ∷ Parser String
 bashVersionResponseParser = do
   void $ string "GNU bash, version "
-  fromCharArray <<< Array.fromFoldable <$> manyTill anyChar
+  fromCharArray <<< Array.fromFoldable <$> manyTill
+    anyChar
     (string " ")

@@ -31,7 +31,13 @@ import Node.Buffer (toString)
 import Node.Encoding (Encoding(UTF8))
 import Control.Monad.Freer.Free (interpreter)
 import Data.Array as Array
-import Output (class Codable, encode)
+import Output
+  ( class Codable
+  , encode
+  , printComment
+  , printInput
+  , printOutput
+  )
 import Control.Plus (empty)
 import Data.Either (Either(Left), either)
 import Data.String (joinWith, trim)
@@ -54,8 +60,8 @@ instance Codable String Step where
     (const $ Left "parsing error")
     ( case _ of
         BashCommandExecution { input, output } →
-          "> " <> input <> "\n" <> output
-        CommentCreation s → "> # " <> s
+          (printInput input) <> "\n" <> (printOutput output)
+        CommentCreation s → printComment s
     )
 
 newtype ExecutionResult = ExecutionResult
@@ -65,19 +71,20 @@ instance Codable String ExecutionResult where
   codec = basicCodec
     (const $ Left "parsing error")
     ( \(ExecutionResult { os, steps, versions }) →
-        "> # OS version: "
-          <> os
-          <> "\n> #\n"
-          <> "> # Program versions\n"
+        (printComment $ "OS version: " <> os <> "\n")
+          <>
+            (printComment "\n")
+          <>
+            (printComment "Program versions\n")
           <>
             ( foldMapWithIndex
-                ( \name version → "> # " <> name <> ": " <> version <>
-                    "\n"
+                ( \name version → printComment $
+                    name <> ": " <> version <> "\n"
                 )
                 versions
             )
           <>
-            "> #\n"
+            printComment "\n"
           <>
             ( joinWith
                 "\n"

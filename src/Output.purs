@@ -1,6 +1,16 @@
-module Output (class Codable, codec, decode, encode) where
+module Output
+  ( class Codable
+  , codec
+  , decode
+  , encode
+  , printComment
+  , printInput
+  , printOutput
+  ) where
 
 import Prelude
+import Ansi.Codes (Color(BrightBlack, BrightWhite, White))
+import Ansi.Output (foreground, withGraphics)
 import Data.Codec (BasicCodec)
 import Data.Codec as Codec
 import Data.Either (Either)
@@ -13,3 +23,14 @@ encode = Codec.encode codec
 
 decode ∷ ∀ a b m. Codable a b ⇒ a → Either String b
 decode = Codec.decode codec
+
+printInput ∷ String → String
+printInput = append "> " <<< withGraphics (foreground BrightWhite)
+
+printOutput ∷ String → String
+printOutput = identity
+
+printComment ∷ String → String
+printComment = printInput
+  <<< withGraphics (foreground BrightBlack)
+  <<< append "# "

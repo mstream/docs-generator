@@ -5,22 +5,36 @@ module Execution
   ) where
 
 import Prelude
+import Data.FoldableWithIndex (foldMapWithIndex)
 import Control.Monad.Free (foldFree)
+import Data.Map (Map)
+import Data.Map as Map
+import Text.Parsing.StringParser (Parser, printParserError, runParser)
 import Effect (Effect)
-import Program (BashCommand, Program, ProgramF)
-import Data.List (List, (:))
+import Effect.Exception (error, throwException)
+import Data.Foldable (traverse_)
+import Data.Traversable (traverse)
+import Program
+  ( BashCommand
+  , Program
+  , ProgramF
+  , nixPackageNames
+  , versionCommandsAndParsers
+  )
+import Data.List (List)
+import Data.List as List
 import Control.Monad.Trans.Class (lift)
 import Node.ChildProcess (defaultExecSyncOptions, execSync)
 import Control.Monad.State.Trans (StateT, runStateT)
-import Control.Monad.State.Class (modify_)
+import Control.Monad.State.Class (gets, modify_)
 import Node.Buffer (toString)
 import Node.Encoding (Encoding(UTF8))
 import Control.Monad.Freer.Free (interpreter)
 import Data.Array as Array
 import Output (class Codable, encode)
 import Control.Plus (empty)
-import Data.Either (Either(Left))
-import Data.String (joinWith)
+import Data.Either (Either(Left), either)
+import Data.String (joinWith, trim)
 import Data.Codec (basicCodec)
 import Data.Generic.Rep (class Generic)
 import Data.Tuple.Nested ((/\))
@@ -44,47 +58,114 @@ instance Codable String Step where
         CommentCreation s → "> # " <> s
     )
 
-newtype ExecutionResult = ExecutionResult { steps ∷ List Step }
-
-instance Semigroup ExecutionResult where
-  append (ExecutionResult r1) (ExecutionResult r2) = ExecutionResult
-    { steps: r1.steps <> r2.steps }
-
-instance Monoid ExecutionResult where
-  mempty = ExecutionResult { steps: empty }
+newtype ExecutionResult = ExecutionResult
+  { os ∷ String, steps ∷ List Step, versions ∷ Map String String }
 
 instance Codable String ExecutionResult where
   codec = basicCodec
     (const $ Left "parsing error")
-    ( \(ExecutionResult { steps }) →
-        joinWith
-          "\n"
-          (encode <$> (Array.reverse $ Array.fromFoldable steps))
+    ( \(ExecutionResult { os, steps, versions }) →
+        "> # OS version: "
+          <> os
+          <> "\n> #\n"
+          <> "> # Program versions\n"
+          <>
+            ( foldMapWithIndex
+                ( \name version → "> # " <> name <> ": " <> version <>
+                    "\n"
+                )
+                versions
+            )
+          <>
+            "> #\n"
+          <>
+            ( joinWith
+                "\n"
+                ( encode <$>
+                    (Array.reverse $ Array.fromFoldable steps)
+                )
+            )
     )
 
-interpret ∷ ProgramF ~> StateT ExecutionResult Effect
+type State =
+  { context ∷ Context
+  , steps ∷ List Step
+  , versions ∷ Map String String
+  }
+
+type Context = { execCommand ∷ String → Effect String }
+
+interpret ∷ ProgramF ~> StateT State Effect
 interpret = interpreter { bash, comment }
 
-bash ∷ BashCommand → StateT ExecutionResult Effect String
+execShellCommand ∷ String → Effect String
+execShellCommand input = do
+  outputBuffer ← execSync
+    input
+    defaultExecSyncOptions
+  toString UTF8 outputBuffer
+
+execDockerCommand ∷ String → String → Effect String
+execDockerCommand dockerContainerId input =
+  execShellCommand $ "docker exec " <> dockerContainerId <> " " <> input
+
+installNixPackage ∷ (String → Effect String) → String → Effect Unit
+installNixPackage execCommand packageName =
+  void $ execCommand ("nix-env -i " <> packageName)
+
+getCommandVersion
+  ∷ (String → Effect String)
+  → { versionCommand ∷ String, responseParser ∷ Parser String }
+  → Effect String
+getCommandVersion execCommand { versionCommand, responseParser } = do
+  output ← execCommand versionCommand
+  either
+    (throwException <<< error <<< printParserError)
+    pure
+    (runParser responseParser output)
+
+bash ∷ BashCommand → StateT State Effect String
 bash command = do
   let
     input = encode command
-  outputBuffer ← lift $
-    execSync
-      input
-      defaultExecSyncOptions
-  output ← lift $ toString UTF8 outputBuffer
-  modify_ $ \(ExecutionResult result) → ExecutionResult $
-    result
-      { steps = BashCommandExecution { input, output } : result.steps }
+  { execCommand } ← gets (_.context)
+
+  lift $ traverse_
+    (installNixPackage execCommand)
+    (nixPackageNames command)
+
+  versions ← lift $ traverse
+    (getCommandVersion execCommand)
+    (versionCommandsAndParsers command)
+
+  output ← lift $ execCommand input
+  modify_ $ \state →
+    state
+      { steps =
+          (List.singleton $ BashCommandExecution { input, output })
+            <> state.steps
+      , versions = Map.union state.versions versions
+      }
   pure output
 
-comment ∷ String → StateT ExecutionResult Effect Unit
+comment ∷ String → StateT State Effect Unit
 comment s = do
-  modify_ $ \(ExecutionResult result) → ExecutionResult $
-    result { steps = CommentCreation s : result.steps }
+  modify_ $ \state →
+    state
+      { steps = (List.singleton $ CommentCreation s) <> state.steps }
 
 run ∷ Program Unit → Effect ExecutionResult
 run program = do
-  _ /\ result ← runStateT (foldFree interpret program) mempty
-  pure result
+  dockerContainerId ← trim <$> execShellCommand
+    "docker run -d nixos/nix:2.3.12 sleep 60"
+  let
+    execCommand = execDockerCommand dockerContainerId
+  os ← trim <$> execCommand "uname -o -r"
+  void $ execCommand
+    "nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs"
+  void $ execCommand
+    "nix-channel --update"
+  _ /\ { steps, versions } ← runStateT
+    (foldFree interpret program)
+    { context: { execCommand }, steps: empty, versions: Map.empty }
+  pure $ ExecutionResult { os, steps, versions }

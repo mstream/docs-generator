@@ -1,0 +1,12 @@
+> [97m[90m# OS version: 5.10.47-linuxkit Linux
+[0m[0m> [97m[90m# 
+[0m[0m> [97m[90m# Program versions
+[0m[0m> [97m[90m# bash: 5.1.4(1)-release
+[0m[0m> [97m[90m# 
+[0m[0m> [97m[90m# Obtaining the current time[0m[0m
+> [97mdate[0m
+Mon Dec 13 15:31:34 UTC 2021
+
+> [97m[90m# Printing it back[0m[0m
+> [97mecho 'the time was: Mon Dec 13 15:31:34 UTC 2021'[0m
+the time was: Mon Dec 13 15:31:34 UTC 2021

@@ -43,8 +43,8 @@ data BashCommand
 
 derive instance Generic BashCommand _
 
-instance Codable String BashCommand where
-  codec = basicCodec
+instance Codable Unit String BashCommand where
+  codec _ = basicCodec
     (const $ Left "parsing error")
     ( case _ of
         Date → "date"
@@ -73,8 +73,8 @@ data ProgramF a
   = Bash BashCommand (String → a)
   | Comment String a
 
-instance Codable String (ProgramF a) where
-  codec = basicCodec
+instance Codable Unit String (ProgramF a) where
+  codec _ = basicCodec
     (const $ Left "parsing error")
     ( case _ of
         Bash command _ → "bash -c \"" <> encode command <> "\""

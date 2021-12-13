@@ -2,35 +2,27 @@ module Output
   ( class Codable
   , codec
   , decode
+  , decodeWithOptions
   , encode
-  , printComment
-  , printInput
-  , printOutput
+  , encodeWithOptions
   ) where
 
 import Prelude
-import Ansi.Codes (Color(BrightBlack, BrightWhite, White))
-import Ansi.Output (foreground, withGraphics)
 import Data.Codec (BasicCodec)
 import Data.Codec as Codec
 import Data.Either (Either)
 
-class Codable a b where
-  codec ∷ BasicCodec (Either String) a b
+class Codable o a b | a → o, o → a where
+  codec ∷ o → BasicCodec (Either String) a b
 
-encode ∷ ∀ a b m. Codable a b ⇒ b → a
-encode = Codec.encode codec
+encode ∷ ∀ a b. Codable Unit a b ⇒ b → a
+encode = Codec.encode (codec unit)
 
-decode ∷ ∀ a b m. Codable a b ⇒ a → Either String b
-decode = Codec.decode codec
+encodeWithOptions ∷ ∀ a b o. Codable o a b ⇒ o → b → a
+encodeWithOptions options = Codec.encode (codec options)
 
-printInput ∷ String → String
-printInput = append "> " <<< withGraphics (foreground BrightWhite)
+decode ∷ ∀ a b m. Codable Unit a b ⇒ a → Either String b
+decode = Codec.decode (codec unit)
 
-printOutput ∷ String → String
-printOutput = identity
-
-printComment ∷ String → String
-printComment = printInput
-  <<< withGraphics (foreground BrightBlack)
-  <<< append "# "
+decodeWithOptions ∷ ∀ a b m o. Codable o a b ⇒ o → a → Either String b
+decodeWithOptions options = Codec.decode (codec options)

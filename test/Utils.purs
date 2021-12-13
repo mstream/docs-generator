@@ -8,6 +8,7 @@ import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync as FS
 import Node.Path (FilePath)
 import Effect (Effect)
+import Ansi as Ansi
 
 generateSnapshot ∷ Program Unit → FilePath → Effect Unit
 generateSnapshot program filePath = do
@@ -15,4 +16,4 @@ generateSnapshot program filePath = do
   FS.writeTextFile
     UTF8
     filePath
-    (Output.encode executionResult)
+    (Ansi.toString $ Output.encode executionResult)

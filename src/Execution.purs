@@ -14,7 +14,7 @@ import Data.Map as Map
 import Text.Parsing.StringParser (Parser, printParserError, runParser)
 import Effect (Effect)
 import Effect.Exception (error, throwException)
-import Data.Foldable (traverse_)
+import Data.Foldable (intercalate, traverse_)
 import Data.Traversable (traverse)
 import Program
   ( BashCommand
@@ -34,12 +34,11 @@ import Node.Buffer (toString)
 import Node.Encoding (Encoding(UTF8))
 import Control.Monad.Freer.Free (interpreter)
 import Data.Array as Array
+import Ansi (Ansi)
+import Ansi as Ansi
 import Output
   ( class Codable
   , encode
-  , printComment
-  , printInput
-  , printOutput
   )
 import Control.Plus (empty)
 import Type.Proxy (Proxy(Proxy))
@@ -59,39 +58,41 @@ derive instance Generic Step _
 instance Show Step where
   show = genericShow
 
-instance Codable String Step where
-  codec = basicCodec
+instance Codable Unit Ansi Step where
+  codec _ = basicCodec
     (const $ Left "parsing error")
     ( case _ of
         BashCommandExecution { input, output } →
-          (printInput input) <> "\n" <> (printOutput output)
-        CommentCreation s → printComment s
+          (Ansi.printInput input)
+            <> Ansi.newline
+            <> (Ansi.printOutput output)
+        CommentCreation s → Ansi.printComment s
     )
 
 newtype ExecutionResult = ExecutionResult
   { os ∷ String, steps ∷ List Step, versions ∷ Map String String }
 
-instance Codable String ExecutionResult where
-  codec = basicCodec
+instance Codable Unit Ansi ExecutionResult where
+  codec _ = basicCodec
     (const $ Left "parsing error")
     ( \(ExecutionResult { os, steps, versions }) →
-        (printComment $ "OS version: " <> os <> "\n")
+        (Ansi.printComment $ "OS version: " <> os <> "\n")
           <>
-            (printComment "\n")
+            (Ansi.printComment "\n")
           <>
-            (printComment "Program versions\n")
+            (Ansi.printComment "Program versions\n")
           <>
             ( foldMapWithIndex
-                ( \name version → printComment $
+                ( \name version → Ansi.printComment $
                     name <> ": " <> version <> "\n"
                 )
                 versions
             )
           <>
-            printComment "\n"
+            Ansi.printComment "\n"
           <>
-            ( joinWith
-                "\n"
+            ( intercalate
+                Ansi.newline
                 ( encode <$>
                     (Array.reverse $ Array.fromFoldable steps)
                 )

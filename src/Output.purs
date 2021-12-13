@@ -12,7 +12,7 @@ import Data.Codec (BasicCodec)
 import Data.Codec as Codec
 import Data.Either (Either)
 
-class Codable o a b | a → o, o → a where
+class Codable o a b | a → o where
   codec ∷ o → BasicCodec (Either String) a b
 
 encode ∷ ∀ a b. Codable Unit a b ⇒ b → a

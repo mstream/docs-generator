@@ -9,12 +9,6 @@ import Test.Programs.ReprintingCurrentTime as ReprintingCurrentTime
 
 main ∷ Effect Unit
 main = do
-  traverse_
-    ( \{ name, program } → Utils.generateSnapshot
-        program
-        ("test/outputs/" <> name <> ".ansi")
-    )
-    [ { name: "ReprintingCurrentTime"
-      , program: ReprintingCurrentTime.program
-      }
-    ]
+  Utils.generateSnapshots
+    ReprintingCurrentTime.program
+    "test/outputs/ReprintingCurrentTime"

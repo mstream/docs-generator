@@ -36,6 +36,8 @@ import Control.Monad.Freer.Free (interpreter)
 import Data.Array as Array
 import Ansi (Ansi)
 import Ansi as Ansi
+import Markdown (Markdown)
+import Markdown as Markdown
 import Output
   ( class Codable
   , encode
@@ -58,6 +60,18 @@ derive instance Generic Step _
 instance Show Step where
   show = genericShow
 
+instance Codable Unit String Step where
+  codec _ = basicCodec
+    (const $ Left "parsing error")
+    ( case _ of
+        BashCommandExecution { input, output } →
+          "> "
+            <> input
+            <> "\n"
+            <> output
+        CommentCreation s → "> # " <> s
+    )
+
 instance Codable Unit Ansi Step where
   codec _ = basicCodec
     (const $ Left "parsing error")
@@ -71,6 +85,33 @@ instance Codable Unit Ansi Step where
 
 newtype ExecutionResult = ExecutionResult
   { os ∷ String, steps ∷ List Step, versions ∷ Map String String }
+
+instance Codable Unit String ExecutionResult where
+  codec _ = basicCodec
+    (const $ Left "parsing error")
+    ( \(ExecutionResult { os, steps, versions }) →
+        ("> # OS version: " <> os <> "\n")
+          <>
+            "\n"
+          <>
+            "> # Program versions\n"
+          <>
+            ( foldMapWithIndex
+                ( \name version →
+                    "> # " <> name <> ": " <> version <> "\n"
+                )
+                versions
+            )
+          <>
+            "\n"
+          <>
+            ( intercalate
+                "\n"
+                ( encode <$>
+                    (Array.reverse $ Array.fromFoldable steps)
+                )
+            )
+    )
 
 instance Codable Unit Ansi ExecutionResult where
   codec _ = basicCodec
@@ -98,6 +139,11 @@ instance Codable Unit Ansi ExecutionResult where
                 )
             )
     )
+
+instance Codable Unit Markdown ExecutionResult where
+  codec _ = basicCodec
+    (const $ Left "parsing error")
+    (Markdown.codeBlock <<< encode)
 
 type State =
   { context ∷ Context

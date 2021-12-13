@@ -5,8 +5,10 @@ module Execution
   ) where
 
 import Prelude
+import Data.String.NonEmpty as NES
 import Data.FoldableWithIndex (foldMapWithIndex)
 import Control.Monad.Free (foldFree)
+import Docker as Docker
 import Data.Map (Map)
 import Data.Map as Map
 import Text.Parsing.StringParser (Parser, printParserError, runParser)
@@ -18,9 +20,10 @@ import Program
   ( BashCommand
   , Program
   , ProgramF
-  , nixPackageNames
   , versionCommandsAndParsers
   )
+import Nix (PackageName)
+import Nix as Nix
 import Data.List (List)
 import Data.List as List
 import Control.Monad.Trans.Class (lift)
@@ -39,6 +42,7 @@ import Output
   , printOutput
   )
 import Control.Plus (empty)
+import Type.Proxy (Proxy(Proxy))
 import Data.Either (Either(Left), either)
 import Data.String (joinWith, trim)
 import Data.Codec (basicCodec)
@@ -116,9 +120,9 @@ execDockerCommand ∷ String → String → Effect String
 execDockerCommand dockerContainerId input =
   execShellCommand $ "docker exec " <> dockerContainerId <> " " <> input
 
-installNixPackage ∷ (String → Effect String) → String → Effect Unit
+installNixPackage ∷ (String → Effect String) → PackageName → Effect Unit
 installNixPackage execCommand packageName =
-  void $ execCommand ("nix-env -i " <> packageName)
+  void $ execCommand $ Nix.installPackageCommand packageName
 
 getCommandVersion
   ∷ (String → Effect String)
@@ -139,7 +143,7 @@ bash command = do
 
   lift $ traverse_
     (installNixPackage execCommand)
-    (nixPackageNames command)
+    (Nix.packageNames command)
 
   versions ← lift $ traverse
     (getCommandVersion execCommand)
@@ -163,16 +167,18 @@ comment s = do
 
 run ∷ Program Unit → Effect ExecutionResult
 run program = do
-  dockerContainerId ← trim <$> execShellCommand
-    "docker run -d nixos/nix:2.3.12 sleep 60"
-  let
-    execCommand = execDockerCommand dockerContainerId
-  os ← trim <$> execCommand "uname -o -r"
-  void $ execCommand
-    "nix-channel --add https://nixos.org/channels/nixpkgs-unstable nixpkgs"
-  void $ execCommand
-    "nix-channel --update"
-  _ /\ { steps, versions } ← runStateT
-    (foldFree interpret program)
-    { context: { execCommand }, steps: empty, versions: Map.empty }
-  pure $ ExecutionResult { os, steps, versions }
+  Docker.executeInContainer
+    execShellCommand
+    Docker.nixosNix
+    containerProgram
+  where
+  containerProgram execCommand = do
+    os ← trim <$> execCommand "uname -o -r"
+    void $ execCommand $ Nix.addChannelCommand
+      (Nix.channelName $ NES.nes (Proxy ∷ Proxy "nixpkgs"))
+      (Nix.channelUrl Nix.nixos2105)
+    void $ execCommand Nix.updateChannelsCommand
+    _ /\ { steps, versions } ← runStateT
+      (foldFree interpret program)
+      { context: { execCommand }, steps: empty, versions: Map.empty }
+    pure $ ExecutionResult { os, steps, versions }

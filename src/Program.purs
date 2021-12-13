@@ -1,15 +1,16 @@
 module Program
-  ( class Installable
-  , class Versioned
+  ( class Versioned
   , BashCommand(..)
   , Program
   , ProgramF(..)
   , f
-  , nixPackageNames
   , versionCommandsAndParsers
   ) where
 
 import Prelude
+import Data.Set as Set
+import Nix (class Installable)
+import Nix as Nix
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Array as Array
@@ -18,6 +19,7 @@ import Text.Parsing.StringParser.CodePoints (anyChar, string)
 import Text.Parsing.StringParser.Combinators (manyTill)
 import Output (class Codable, encode)
 import Data.String.CodeUnits (fromCharArray)
+import Data.String.NonEmpty as NES
 import Data.Either (Either(Left))
 import Data.Tuple.Nested ((/\))
 import Data.List as List
@@ -27,9 +29,7 @@ import Data.Codec (basicCodec)
 import Control.Monad.Free (Free, liftF)
 import Control.Monad.Freer.Free (Constructors, constructors)
 import Data.Generic.Rep (class Generic)
-
-class Installable a where
-  nixPackageNames ∷ a → List String
+import Type.Proxy (Proxy(Proxy))
 
 class Versioned a where
   versionCommandsAndParsers
@@ -52,10 +52,12 @@ instance Codable String BashCommand where
     )
 
 instance Installable BashCommand where
-  nixPackageNames command =
-    List.singleton "bash" <> case command of
-      Date → empty
-      Echo _ → empty
+  packageNames command =
+    (Set.singleton $ Nix.packageName $ NES.nes (Proxy ∷ Proxy "bash"))
+      <>
+        case command of
+          Date → Set.empty
+          Echo _ → Set.empty
 
 instance Versioned BashCommand where
   versionCommandsAndParsers command = Map.insert

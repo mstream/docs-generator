@@ -3,17 +3,19 @@ module Test.Utils (generateSnapshots) where
 import Prelude
 
 import Ansi as Ansi
+import Bash as Bash
 import Data.Foldable (traverse_)
 import Effect (Effect)
+import Effect.Aff (Aff)
 import Execution as Execution
 import Markdown as Markdown
 import Node.Encoding (Encoding(UTF8))
-import Node.FS.Sync as FS
+import Node.FS.Aff as FS
 import Node.Path (FilePath)
 import Output as Output
 import Program (Program)
 
-generateSnapshots ∷ Program Unit → FilePath → Effect Unit
+generateSnapshots ∷ Program Unit → FilePath → Aff Unit
 generateSnapshots program filePathBase = do
   executionResult ← Execution.run program
   traverse_

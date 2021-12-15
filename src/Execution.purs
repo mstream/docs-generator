@@ -6,6 +6,7 @@ import Prelude
 
 import Ansi (Ansi)
 import Ansi as Ansi
+import Control.Monad.Error.Class (class MonadThrow, throwError)
 import Control.Monad.Free (foldFree)
 import Control.Monad.Freer.Free (interpreter)
 import Control.Monad.State.Class (gets, modify_)
@@ -28,8 +29,9 @@ import Data.String.NonEmpty as NES
 import Data.Traversable (traverse)
 import Data.Tuple.Nested ((/\))
 import Docker as Docker
-import Effect (Effect)
-import Effect.Exception (error, throwException)
+import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
+import Effect.Exception as Exception
 import Execution.Result (Result, Step)
 import Execution.Result as Result
 import Markdown (Markdown)
@@ -56,30 +58,30 @@ type State =
   , versions ∷ Map String String
   }
 
-type Context = { execCommand ∷ String → Effect String }
+type Context = { execCommand ∷ String → Aff String }
 
-interpret ∷ ProgramF ~> StateT State Effect
+interpret ∷ ProgramF ~> StateT State Aff
 interpret = interpreter { bash, comment }
 
-execShellCommand ∷ String → Effect String
-execShellCommand input = do
+execShellCommand ∷ String → Aff String
+execShellCommand input = liftEffect $ do
   outputBuffer ← execSync
     input
     defaultExecSyncOptions
   toString UTF8 outputBuffer
 
 getCommandVersion
-  ∷ (String → Effect String)
+  ∷ (String → Aff String)
   → { versionCommand ∷ String, responseParser ∷ Parser String }
-  → Effect String
+  → Aff String
 getCommandVersion execCommand { versionCommand, responseParser } = do
   output ← execCommand versionCommand
   either
-    (throwException <<< error <<< printParserError)
+    (throwError <<< Exception.error <<< printParserError)
     pure
     (runParser responseParser output)
 
-bash ∷ BashCommand → StateT State Effect String
+bash ∷ BashCommand → StateT State Aff String
 bash command = do
   let
     input = Output.serialize_ command
@@ -105,7 +107,7 @@ bash command = do
       }
   pure output
 
-comment ∷ String → StateT State Effect Unit
+comment ∷ String → StateT State Aff Unit
 comment s = do
   modify_ $ \state →
     state
@@ -113,7 +115,7 @@ comment s = do
           state.steps
       }
 
-run ∷ Program Unit → Effect Result
+run ∷ Program Unit → Aff Result
 run program = do
   Docker.executeInContainer
     execShellCommand

@@ -2,13 +2,13 @@ module Test.Main where
 
 import Prelude
 
-import Test.Utils as Utils
 import Effect (Effect)
-import Data.Foldable (traverse_)
+import Effect.Aff as Aff
 import Test.Programs.ReprintingCurrentTime as ReprintingCurrentTime
+import Test.Utils as Utils
 
 main ∷ Effect Unit
-main = do
+main = Aff.launchAff_ $
   Utils.generateSnapshots
     ReprintingCurrentTime.program
     "test/outputs/ReprintingCurrentTime"

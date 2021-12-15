@@ -12,15 +12,27 @@ module Docker
 import Prelude
 
 import Control.Monad.Error.Class (class MonadThrow, throwError)
+import Control.Parallel (parSequence_)
 import Data.Maybe as Maybe
+import Data.Posix.Signal (Signal(SIGINT))
 import Data.String as String
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
-import Effect.Exception (Error)
+import Effect.Aff (Aff)
+import Effect.Aff as Aff
+import Effect.Class (liftEffect)
+import Effect.Class.Console as Console
 import Effect.Exception as Exception
+import Node.Process as Process
+import Output (class Serializable)
+import Output as Output
 import Type.Proxy (Proxy(Proxy))
 
 newtype ContainerId = ContainerId NonEmptyString
+
+instance Serializable Unit String ContainerId where
+  serialize _ (ContainerId nes) = NES.toString nes
+
 newtype Image = Image NonEmptyString
 
 nixosNix ∷ Image
@@ -43,33 +55,42 @@ stopCommand (ContainerId id) =
   "docker stop " <> NES.toString id
 
 executeInContainer
-  ∷ ∀ a m
-  . MonadThrow Error m
-  ⇒ (String → m String)
+  ∷ ∀ a
+  . (String → Aff String)
   → Image
-  → ((String → m String) → m a)
-  → m a
+  → ((String → Aff String) → Aff a)
+  → Aff a
 executeInContainer executeCommand image program = do
   containerId ← run executeCommand image
+  let
+    cleanUp = cleanUpContainer executeCommand containerId
+  parSequence_
+    [ liftEffect $ Process.onBeforeExit (Aff.launchAff_ cleanUp)
+    -- BUG: does not work
+    , liftEffect $ Process.onSignal SIGINT (Aff.launchAff_ cleanUp)
+    , logSandboxStart containerId
+    ]
   result ← program $ exec executeCommand containerId
-  stop executeCommand containerId
-  rm executeCommand containerId
   pure result
 
-exec ∷ ∀ f. (String → f String) → ContainerId → String → f String
+cleanUpContainer ∷ (String → Aff String) → ContainerId → Aff Unit
+cleanUpContainer executeCommand containerId = do
+  logSandboxCleanUp containerId
+  stop executeCommand containerId
+  rm executeCommand containerId
+
+exec ∷ (String → Aff String) → ContainerId → String → Aff String
 exec executeCommand containerId command = executeCommand
   (execCommand containerId command)
 
-rm ∷ ∀ f. Functor f ⇒ (String → f String) → ContainerId → f Unit
-rm executeCommand containerId = void $ executeCommand
-  (rmCommand containerId)
+rm ∷ (String → Aff String) → ContainerId → Aff Unit
+rm executeCommand containerId = void $
+  executeCommand (rmCommand containerId)
 
 run
-  ∷ ∀ m
-  . MonadThrow Error m
-  ⇒ (String → m String)
+  ∷ (String → Aff String)
   → Image
-  → m ContainerId
+  → Aff ContainerId
 run executeCommand image = do
   output ← executeCommand (runCommand image)
   Maybe.maybe
@@ -77,6 +98,14 @@ run executeCommand image = do
     (pure <<< ContainerId)
     (NES.fromString $ String.trim output)
 
-stop ∷ ∀ f. Functor f ⇒ (String → f String) → ContainerId → f Unit
-stop executeCommand containerId = void $ executeCommand
-  (stopCommand containerId)
+stop ∷ (String → Aff String) → ContainerId → Aff Unit
+stop executeCommand containerId = void $
+  executeCommand (stopCommand containerId)
+
+logSandboxStart ∷ ContainerId → Aff Unit
+logSandboxStart containerId = Console.error $
+  "sandbox runing inside container " <> (Output.serialize_ containerId)
+
+logSandboxCleanUp ∷ ContainerId → Aff Unit
+logSandboxCleanUp containerId = Console.error $
+  "cleaning ip sandbox of container " <> (Output.serialize_ containerId)

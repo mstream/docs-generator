@@ -1,6 +1,6 @@
 module Execution.Result
-  ( Result
-  , Step
+  ( Result(..)
+  , Step(..)
   , bashCommandExecution
   , commentCreation
   , make
@@ -24,8 +24,6 @@ import Markdown (Markdown)
 import Markdown as Markdown
 import Output (class Serializable)
 import Output as Output
-import Text.Parsing.StringParser (Parser, printParserError, runParser)
-import Type.Proxy (Proxy(Proxy))
 
 newtype Result = Result
   { os ∷ String, steps ∷ List Step, versions ∷ Map String String }

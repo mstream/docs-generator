@@ -1,28 +1,26 @@
 module Output
-  ( class Codable
-  , codec
-  , decode
-  , decodeWithOptions
-  , encode
-  , encodeWithOptions
+  ( class Deserializable
+  , class Serializable
+  , deserialize
+  , deserialize_
+  , serialize
+  , serialize_
   ) where
 
 import Prelude
 import Data.Codec (BasicCodec)
 import Data.Codec as Codec
 import Data.Either (Either)
+import Data.Either.Nested (type (\/))
 
-class Codable o a b | a → o where
-  codec ∷ o → BasicCodec (Either String) a b
+class Serializable o a b | a → o where
+  serialize ∷ o → b → a
 
-encode ∷ ∀ a b. Codable Unit a b ⇒ b → a
-encode = Codec.encode (codec unit)
+class Deserializable o a b | a → o where
+  deserialize ∷ o → a → String \/ b
 
-encodeWithOptions ∷ ∀ a b o. Codable o a b ⇒ o → b → a
-encodeWithOptions options = Codec.encode (codec options)
+serialize_ ∷ ∀ a b. Serializable Unit a b ⇒ b → a
+serialize_ x = serialize unit x
 
-decode ∷ ∀ a b m. Codable Unit a b ⇒ a → Either String b
-decode = Codec.decode (codec unit)
-
-decodeWithOptions ∷ ∀ a b m o. Codable o a b ⇒ o → a → Either String b
-decodeWithOptions options = Codec.decode (codec options)
+deserialize_ ∷ ∀ a b. Deserializable Unit a b ⇒ a → String \/ b
+deserialize_ x = deserialize unit x

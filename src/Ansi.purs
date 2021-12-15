@@ -4,7 +4,7 @@ module Ansi
   , printInput
   , printOutput
   , printComment
-  , toString
+  , stringify
   ) where
 
 import Prelude
@@ -33,5 +33,5 @@ printComment = printInput
 newline ∷ Ansi
 newline = Ansi "\n"
 
-toString ∷ Ansi → String
-toString (Ansi s) = s
+stringify ∷ Ansi → String
+stringify (Ansi s) = s

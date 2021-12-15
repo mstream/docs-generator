@@ -10,16 +10,15 @@ module Docker
   ) where
 
 import Prelude
-import Data.String as String
+
+import Control.Monad.Error.Class (class MonadThrow, throwError)
 import Data.Maybe as Maybe
+import Data.String as String
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
-import Type.Proxy (Proxy(Proxy))
-import Data.Foldable (class Foldable)
-import Data.Set (Set)
-import Control.Monad.Error.Class (class MonadThrow, throwError)
 import Effect.Exception (Error)
 import Effect.Exception as Exception
+import Type.Proxy (Proxy(Proxy))
 
 newtype ContainerId = ContainerId NonEmptyString
 newtype Image = Image NonEmptyString

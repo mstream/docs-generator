@@ -1,24 +1,28 @@
-module Markdown (Markdown, codeBlock, toString) where
+module Markdown (Markdown, codeBlock, stringify) where
 
 import Prelude
 
-import Data.Codec (basicCodec)
-import Data.Either (Either(Left), either)
-import Output (class Codable)
-import Output as Output
+import Data.Codec (BasicCodec)
+import Data.Codec as Codec
+import Data.Either (Either(Left))
+import Output (class Serializable)
 
 data Markdown =
   CodeBlock String
 
-instance Codable Unit String Markdown where
-  codec _ = basicCodec
-    (const $ Left "parsing error")
-    ( case _ of
-        CodeBlock s → "```\n" <> s <> "\n```"
-    )
+instance Serializable Unit String Markdown where
+  serialize _ = Codec.encode codec
+
+codec ∷ BasicCodec (Either String) String Markdown
+codec = Codec.basicCodec
+  (const $ Left "parsing error")
+  ( case _ of
+      CodeBlock s → "```\n" <> s <> "\n```"
+  )
 
 codeBlock ∷ String → Markdown
 codeBlock = CodeBlock
 
-toString ∷ Markdown → String
-toString = Output.encode
+stringify ∷ Markdown → String
+stringify = case _ of
+  CodeBlock s → s

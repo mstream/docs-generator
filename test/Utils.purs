@@ -1,18 +1,17 @@
 module Test.Utils (generateSnapshots) where
 
 import Prelude
+
+import Ansi as Ansi
 import Data.Foldable (traverse_)
-import Program (Program)
-import Execution (ExecutionResult)
+import Effect (Effect)
 import Execution as Execution
-import Output as Output
+import Markdown as Markdown
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Sync as FS
 import Node.Path (FilePath)
-import Effect (Effect)
-import Output (class Codable)
-import Ansi as Ansi
-import Markdown as Markdown
+import Output as Output
+import Program (Program)
 
 generateSnapshots ∷ Program Unit → FilePath → Effect Unit
 generateSnapshots program filePathBase = do
@@ -23,13 +22,13 @@ generateSnapshots program filePathBase = do
         (filePathBase <> "." <> extension)
         contents
     )
-    [ { contents: Output.encode executionResult
+    [ { contents: Output.serialize_ executionResult
       , extension: "txt"
       }
-    , { contents: Ansi.toString $ Output.encode executionResult
+    , { contents: Ansi.stringify $ Output.serialize_ executionResult
       , extension: "ansi"
       }
-    , { contents: Markdown.toString $ Output.encode executionResult
+    , { contents: Markdown.stringify $ Output.serialize_ executionResult
       , extension: "md"
       }
     ]

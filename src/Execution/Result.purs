@@ -10,6 +10,9 @@ import Prelude
 
 import Ansi (Ansi)
 import Ansi as Ansi
+import Data.Argonaut (class EncodeJson, Json)
+import Data.Argonaut as Argonaut
+import Data.Argonaut.Encode.Generic (genericEncodeJson)
 import Data.Array as Array
 import Data.Codec (BasicCodec)
 import Data.Codec as Codec
@@ -28,11 +31,19 @@ import Output as Output
 newtype Result = Result
   { os ∷ String, steps ∷ List Step, versions ∷ Map String String }
 
+derive instance Generic Result _
+
+instance EncodeJson Result where
+  encodeJson = genericEncodeJson
+
 instance Serializable Unit String Result where
   serialize _ = Codec.encode stringCodec
 
 instance Serializable Unit Ansi Result where
   serialize _ = Codec.encode ansiCodec
+
+instance Serializable Unit Json Result where
+  serialize _ = Codec.encode jsonCodec
 
 instance Serializable Unit Markdown Result where
   serialize _ = Codec.encode markdownCodec
@@ -46,6 +57,9 @@ derive instance Generic Step _
 instance Show Step where
   show = genericShow
 
+instance EncodeJson Step where
+  encodeJson = genericEncodeJson
+
 instance Serializable Unit String Step where
   serialize _ = Codec.encode $ Codec.basicCodec
     (const $ Left "parsing error")
@@ -57,6 +71,11 @@ instance Serializable Unit String Step where
             <> output
         CommentCreation s → "> # " <> s
     )
+
+instance Serializable Unit Json Step where
+  serialize _ = Codec.encode $ Codec.basicCodec
+    (const $ Left "parsing error")
+    Argonaut.encodeJson
 
 instance Serializable Unit Ansi Step where
   serialize _ = Codec.encode $ Codec.basicCodec
@@ -95,6 +114,11 @@ ansiCodec = Codec.basicCodec
               )
           )
   )
+
+jsonCodec ∷ BasicCodec (Either String) Json Result
+jsonCodec = Codec.basicCodec
+  (const $ Left "parsing error")
+  Argonaut.encodeJson
 
 markdownCodec ∷ BasicCodec (Either String) Markdown Result
 markdownCodec = Codec.basicCodec

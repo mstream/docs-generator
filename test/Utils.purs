@@ -3,9 +3,8 @@ module Test.Utils (generateSnapshots) where
 import Prelude
 
 import Ansi as Ansi
-import Bash as Bash
+import Data.Argonaut as Argonaut
 import Data.Foldable (traverse_)
-import Effect (Effect)
 import Effect.Aff (Aff)
 import Execution as Execution
 import Markdown as Markdown
@@ -29,6 +28,9 @@ generateSnapshots program filePathBase = do
       }
     , { contents: Ansi.stringify $ Output.serialize_ executionResult
       , extension: "ansi"
+      }
+    , { contents: Argonaut.stringify $ Output.serialize_ executionResult
+      , extension: "json"
       }
     , { contents: Markdown.stringify $ Output.serialize_ executionResult
       , extension: "md"

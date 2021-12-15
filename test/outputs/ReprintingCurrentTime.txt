@@ -4,6 +4,6 @@
 > # bash: 5.1.4(1)-release
 
 > # Obtaining the current time> date
-Wed Dec 15 16:02:17 UTC 2021
-> # Printing it back> echo 'the time was: Wed Dec 15 16:02:17 UTC 2021'
-the time was: Wed Dec 15 16:02:17 UTC 2021
+Wed Dec 15 19:10:32 UTC 2021
+> # Printing it back> echo 'the time was: Wed Dec 15 19:10:32 UTC 2021'
+the time was: Wed Dec 15 19:10:32 UTC 2021

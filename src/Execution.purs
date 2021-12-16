@@ -22,14 +22,10 @@ import Data.Traversable (traverse)
 import Data.Tuple.Nested ((/\))
 import Docker as Docker
 import Effect.Aff (Aff)
-import Effect.Class (liftEffect)
 import Effect.Exception as Exception
 import Execution.Result (Result, Step)
 import Execution.Result as Result
 import Nix as Nix
-import Node.Buffer (toString)
-import Node.ChildProcess (defaultExecSyncOptions, execSync)
-import Node.Encoding (Encoding(UTF8))
 import Os as Os
 import Output as Output
 import Program
@@ -38,6 +34,7 @@ import Program
   , ProgramF
   , versionCommandsAndParsers
   )
+import Shell as Shell
 import Text.Parsing.StringParser (Parser, printParserError, runParser)
 import Type.Proxy (Proxy(Proxy))
 
@@ -51,13 +48,6 @@ type Context = { executeCommand ∷ String → Aff String }
 
 interpret ∷ ProgramF ~> StateT State Aff
 interpret = interpreter { bash, comment }
-
-execShellCommand ∷ String → Aff String
-execShellCommand input = liftEffect $ do
-  outputBuffer ← execSync
-    input
-    defaultExecSyncOptions
-  toString UTF8 outputBuffer
 
 getCommandVersion
   ∷ (String → Aff String)
@@ -107,7 +97,7 @@ comment s = do
 run ∷ Program Unit → Aff Result
 run program = do
   Docker.executeInContainer
-    execShellCommand
+    Shell.executeCommand
     Docker.nixosNix
     containerProgram
   where

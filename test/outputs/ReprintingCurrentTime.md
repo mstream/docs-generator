@@ -5,8 +5,8 @@
 > # bash: 5.1.4(1)-release
 
 > # Obtaining the current time> date
-Thu Dec 16 08:58:44 UTC 2021
-> # Printing it back> echo 'the time was: Thu Dec 16 08:58:44 UTC 2021'
-the time was: Thu Dec 16 08:58:44 UTC 2021
+Thu Dec 16 09:08:52 UTC 2021
+> # Printing it back> echo 'the time was: Thu Dec 16 09:08:52 UTC 2021'
+the time was: Thu Dec 16 09:08:52 UTC 2021
 
 ```

@@ -19,6 +19,7 @@ import Prelude
 import Data.Set (Set)
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
+import Effect.Aff (Aff)
 import Type.Proxy (Proxy(Proxy))
 
 class Installable a where
@@ -60,19 +61,18 @@ packageName ∷ NonEmptyString → PackageName
 packageName = PackageName
 
 addChannel
-  ∷ ∀ f
-  . Functor f
-  ⇒ (String → f String)
+  ∷ (String → Aff String)
   → ChannelName
   → ChannelUrl
-  → f Unit
-addChannel execCommand channelName channelUrl = void $ execCommand $
-  addChannelCommand channelName channelUrl
+  → Aff Unit
+addChannel executeCommand name url = void $ executeCommand $
+  addChannelCommand name url
 
 installPackage
-  ∷ ∀ f. Functor f ⇒ (String → f String) → PackageName → f Unit
-installPackage execCommand packageName = void $ execCommand $
-  installPackageCommand packageName
+  ∷ (String → Aff String) → PackageName → Aff Unit
+installPackage executeCommand name = void $ executeCommand $
+  installPackageCommand name
 
-updateChannels ∷ ∀ f. Functor f ⇒ (String → f String) → f Unit
-updateChannels execCommand = void $ execCommand updateChannelsCommand
+updateChannels ∷ (String → Aff String) → Aff Unit
+updateChannels executeCommand = void $ executeCommand
+  updateChannelsCommand

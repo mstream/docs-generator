@@ -24,5 +24,4 @@ codeBlock ∷ String → Markdown
 codeBlock = CodeBlock
 
 stringify ∷ Markdown → String
-stringify = case _ of
-  CodeBlock s → s
+stringify = Codec.encode codec

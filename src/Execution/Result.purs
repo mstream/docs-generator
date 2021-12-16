@@ -25,11 +25,12 @@ import Data.Map (Map)
 import Data.Show.Generic (genericShow)
 import Markdown (Markdown)
 import Markdown as Markdown
+import Os (Os)
 import Output (class Serializable)
 import Output as Output
 
 newtype Result = Result
-  { os ∷ String, steps ∷ List Step, versions ∷ Map String String }
+  { os ∷ Os, steps ∷ List Step, versions ∷ Map String String }
 
 derive instance Generic Result _
 
@@ -92,7 +93,9 @@ ansiCodec ∷ BasicCodec (Either String) Ansi Result
 ansiCodec = Codec.basicCodec
   (const $ Left "parsing error")
   ( \(Result { os, steps, versions }) →
-      (Ansi.printComment $ "OS version: " <> os <> "\n")
+      ( Ansi.printComment $
+          "OS info: " <> (Output.serialize_ os) <> "\n"
+      )
         <>
           (Ansi.printComment "\n")
         <>
@@ -129,7 +132,7 @@ stringCodec ∷ BasicCodec (Either String) String Result
 stringCodec = Codec.basicCodec
   (const $ Left "parsing error")
   ( \(Result { os, steps, versions }) →
-      ("> # OS version: " <> os <> "\n")
+      ("> # OS info: " <> (Output.serialize_ os) <> "\n")
         <>
           "\n"
         <>
@@ -159,6 +162,6 @@ commentCreation ∷ String → Step
 commentCreation = CommentCreation
 
 make
-  ∷ { os ∷ String, steps ∷ List Step, versions ∷ Map String String }
+  ∷ { os ∷ Os, steps ∷ List Step, versions ∷ Map String String }
   → Result
 make = Result

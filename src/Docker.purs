@@ -11,7 +11,7 @@ module Docker
 
 import Prelude
 
-import Control.Monad.Error.Class (class MonadThrow, throwError)
+import Control.Monad.Error.Class (throwError)
 import Control.Parallel (parSequence_)
 import Data.Maybe as Maybe
 import Data.Posix.Signal (Signal(SIGINT))

@@ -8,9 +8,7 @@ module Output
   ) where
 
 import Prelude
-import Data.Codec (BasicCodec)
-import Data.Codec as Codec
-import Data.Either (Either)
+
 import Data.Either.Nested (type (\/))
 
 class Serializable o a b | a → o where

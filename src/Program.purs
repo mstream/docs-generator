@@ -11,19 +11,15 @@ import Prelude
 
 import Control.Monad.Free (Free, liftF)
 import Control.Monad.Freer.Free (Constructors, constructors)
-import Control.Plus (empty)
 import Data.Array as Array
 import Data.Codec as Codec
 import Data.Either (Either(Left))
 import Data.Generic.Rep (class Generic)
-import Data.List (List)
-import Data.List as List
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Set as Set
 import Data.String.CodeUnits (fromCharArray)
 import Data.String.NonEmpty as NES
-import Data.Tuple.Nested ((/\))
 import Nix (class Installable)
 import Nix as Nix
 import Output (class Serializable)

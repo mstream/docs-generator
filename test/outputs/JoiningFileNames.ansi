@@ -1,0 +1,29 @@
+> [97m[90m# OS info: Linux 5.10.47-linuxkit
+[0m[0m> [97m[90m# 
+[0m[0m> [97m[90m# Program versions
+[0m[0m> [97m[90m# bash: 5.1.4(1)-release
+[0m[0m> [97m[90m# 
+[0m[0m> [97m[90m# Obtaining names of files in the current directory[0m[0m
+> [97mls[0m
+bin
+dev
+etc
+home
+lib
+media
+mnt
+nix
+opt
+proc
+root
+run
+sbin
+srv
+sys
+tmp
+usr
+var
+
+> [97m[90m# Printing names joined with a comma[0m[0m
+> [97mecho 'names of files in the current directory: bin, dev, etc, home, lib, media, mnt, nix, opt, proc, root, run, sbin, srv, sys, tmp, usr, var'[0m
+names of files in the current directory: bin, dev, etc, home, lib, media, mnt, nix, opt, proc, root, run, sbin, srv, sys, tmp, usr, var

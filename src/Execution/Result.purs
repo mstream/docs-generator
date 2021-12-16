@@ -17,8 +17,8 @@ import Data.Array as Array
 import Data.Codec (BasicCodec)
 import Data.Codec as Codec
 import Data.Either (Either(Left))
-import Data.Foldable (intercalate)
-import Data.FoldableWithIndex (foldMapWithIndex)
+import Data.Foldable as Foldable
+import Data.FoldableWithIndex as FoldableWithIndex
 import Data.Generic.Rep (class Generic)
 import Data.List (List)
 import Data.Map (Map)
@@ -101,7 +101,7 @@ ansiCodec = Codec.basicCodec
         <>
           (Ansi.printComment "Program versions\n")
         <>
-          ( foldMapWithIndex
+          ( FoldableWithIndex.foldMapWithIndex
               ( \name version → Ansi.printComment $
                   name <> ": " <> version <> "\n"
               )
@@ -110,7 +110,7 @@ ansiCodec = Codec.basicCodec
         <>
           Ansi.printComment "\n"
         <>
-          ( intercalate
+          ( Foldable.intercalate
               Ansi.newline
               ( Output.serialize_ <$>
                   (Array.reverse $ Array.fromFoldable steps)
@@ -138,7 +138,7 @@ stringCodec = Codec.basicCodec
         <>
           "> # Program versions\n"
         <>
-          ( foldMapWithIndex
+          ( FoldableWithIndex.foldMapWithIndex
               ( \name version →
                   "> # " <> name <> ": " <> version <> "\n"
               )
@@ -147,8 +147,8 @@ stringCodec = Codec.basicCodec
         <>
           "\n"
         <>
-          ( intercalate
-              ""
+          ( Foldable.intercalate
+              "\n"
               ( Output.serialize_ <$>
                   (Array.reverse $ Array.fromFoldable steps)
               )

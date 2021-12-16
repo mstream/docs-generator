@@ -4,7 +4,7 @@ import Prelude
 
 import Ansi as Ansi
 import Data.Argonaut as Argonaut
-import Data.Foldable (traverse_)
+import Data.Foldable as Foldable
 import Effect.Aff (Aff)
 import Execution as Execution
 import Markdown as Markdown
@@ -18,7 +18,7 @@ import Shell as Shell
 generateSnapshots ∷ Program Unit → FilePath → Aff Unit
 generateSnapshots program filePathBase = do
   executionResult ← Execution.run program
-  traverse_
+  Foldable.traverse_
     ( \{ contents, extension, validate } → do
         let
           filePath = filePathBase <> "." <> extension
@@ -37,16 +37,64 @@ generateSnapshots program filePathBase = do
       , extension: "json"
       , validate: \filePath → void
           $ Shell.executeCommand
-          $ "jq . " <> filePath
+          $ jqCommand filePath
       }
     , { contents: Markdown.stringify $ Output.serialize_ executionResult
       , extension: "md"
       , validate: \filePath → void
           $ Shell.executeCommand
-          $ "mdl " <> filePath
+          $ mdlCommand filePath
       }
     ]
 
 saveSnapshot ∷ FilePath → String → Aff Unit
 saveSnapshot filePath contents =
   FS.writeTextFile UTF8 filePath contents
+
+jqCommand ∷ FilePath → String
+jqCommand = append "jq . "
+
+mdlCommand ∷ FilePath → String
+mdlCommand filePath = "mdl --rules "
+  <>
+    ( Foldable.intercalate
+        ","
+        [ "MD001"
+        , "MD002"
+        , "MD003"
+        , "MD004"
+        , "MD005"
+        , "MD006"
+        , "MD007"
+        , "MD009"
+        , "MD010"
+        , "MD011"
+        , "MD012"
+        , "MD014"
+        , "MD018"
+        , "MD019"
+        , "MD020"
+        , "MD021"
+        , "MD022"
+        , "MD023"
+        , "MD024"
+        , "MD025"
+        , "MD026"
+        , "MD027"
+        , "MD028"
+        , "MD029"
+        , "MD030"
+        , "MD031"
+        , "MD032"
+        , "MD033"
+        , "MD034"
+        , "MD035"
+        , "MD036"
+        , "MD037"
+        , "MD038"
+        , "MD039"
+        , "MD046"
+        ]
+    )
+  <> " "
+  <> filePath

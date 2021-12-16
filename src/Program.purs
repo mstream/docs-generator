@@ -38,6 +38,7 @@ class Versioned a where
 data BashCommand
   = Date
   | Echo String
+  | Ls
 
 derive instance Generic BashCommand _
 
@@ -47,6 +48,7 @@ instance Serializable Unit String BashCommand where
     ( case _ of
         Date → "date"
         Echo s → "echo " <> s
+        Ls → "ls"
     )
 
 instance Installable BashCommand where
@@ -56,6 +58,7 @@ instance Installable BashCommand where
         case command of
           Date → Set.empty
           Echo _ → Set.empty
+          Ls → Set.empty
 
 instance Versioned BashCommand where
   versionCommandsAndParsers command = Map.insert
@@ -66,6 +69,7 @@ instance Versioned BashCommand where
     case command of
       Date → Map.empty
       Echo _ → Map.empty
+      Ls → Map.empty
 
 data ProgramF a
   = Bash BashCommand (String → a)
@@ -90,6 +94,13 @@ f = constructors (liftF ∷ ProgramF ~> Program)
 
 bashVersionResponseParser ∷ Parser String
 bashVersionResponseParser = do
+  void $ string "GNU bash, version "
+  fromCharArray <<< Array.fromFoldable <$> manyTill
+    anyChar
+    (string " ")
+
+lsVersionResponseParser ∷ Parser String
+lsVersionResponseParser = do
   void $ string "GNU bash, version "
   fromCharArray <<< Array.fromFoldable <$> manyTill
     anyChar

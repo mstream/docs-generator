@@ -5,8 +5,8 @@
 [0m[0m> [97m[90m# 
 [0m[0m> [97m[90m# Obtaining the current time[0m[0m
 > [97mdate[0m
-Thu Dec 16 11:15:39 UTC 2021
+Fri Dec 17 15:00:23 UTC 2021
 
 > [97m[90m# Printing it back[0m[0m
-> [97mecho 'the time was: Thu Dec 16 11:15:39 UTC 2021'[0m
-the time was: Thu Dec 16 11:15:39 UTC 2021
+> [97mecho 'the time was: Fri Dec 17 15:00:23 UTC 2021'[0m
+the time was: Fri Dec 17 15:00:23 UTC 2021

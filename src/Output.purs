@@ -10,6 +10,18 @@ module Output
 import Prelude
 
 import Data.Either.Nested (type (\/))
+import Data.Map (Map)
+import Data.Map as Map
+import Data.String.NonEmpty (NonEmptyString)
+import Data.String.NonEmpty as NES
+import Data.Tuple.Nested (type (/\), (/\))
+import PureScript.CST.Types
+  ( Expr
+  , Ident(Ident)
+  , Operator(Operator)
+  , Proper(Proper)
+  )
+import Tidy.Codegen as Codegen
 
 class Serializable o a b | a → o where
   serialize ∷ o → b → a
@@ -22,3 +34,34 @@ serialize_ x = serialize unit x
 
 deserialize_ ∷ ∀ a b. Deserializable Unit a b ⇒ a → String \/ b
 deserialize_ x = deserialize unit x
+
+instance Serializable Unit (Expr e) String where
+  serialize _ = Codegen.exprString
+
+instance Serializable Unit (Expr e) NonEmptyString where
+  serialize _ nes = Codegen.exprApp (Codegen.exprIdent $ Ident "nes")
+    [ Codegen.exprTyped
+        (Codegen.exprCtor $ Proper "Proxy")
+        ( Codegen.typeApp
+            (Codegen.typeCtor $ Proper "Proxy")
+            [ Codegen.typeString $ NES.toString nes ]
+        )
+    ]
+
+instance
+  ( Serializable Unit (Expr e) a
+  , Serializable Unit (Expr e) b
+  ) ⇒
+  Serializable Unit (Expr e) (a /\ b) where
+  serialize _ (x /\ y) = Codegen.exprOp
+    (serialize_ x)
+    [ Codegen.binaryOp (Operator "/\\") (serialize_ y) ]
+
+instance
+  ( Serializable Unit (Expr e) k
+  , Serializable Unit (Expr e) v
+  ) ⇒
+  Serializable Unit (Expr e) (Map k v) where
+  serialize _ kvs = Codegen.exprApp
+    (Codegen.exprIdent $ Ident "Map.fromFoldable")
+    [ Codegen.exprArray $ serialize_ <$> Map.toUnfoldable kvs ]

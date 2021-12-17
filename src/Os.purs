@@ -1,5 +1,6 @@
 module Os
   ( Os(..)
+  , make
   , uname
   ) where
 
@@ -17,13 +18,16 @@ import Data.Generic.Rep (class Generic)
 import Data.String.CodePoints as CodePoints
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
+import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Exception as Exception
 import Output (class Deserializable, class Serializable)
 import Output as Output
+import PureScript.CST.Types (Expr, Ident(Ident))
 import Text.Parsing.StringParser as StringParser
 import Text.Parsing.StringParser.CodePoints (noneOf, skipSpaces)
 import Text.Parsing.StringParser.Combinators (many1)
+import Tidy.Codegen as Codegen
 
 newtype Os = Os { name ∷ NonEmptyString, release ∷ NonEmptyString }
 
@@ -34,6 +38,9 @@ instance EncodeJson Os where
 
 instance Deserializable Unit String Os where
   deserialize _ = Codec.decode stringCodec
+
+instance Serializable Unit (Expr e) Os where
+  serialize _ = Codec.encode purescriptExpressionCodec
 
 instance Serializable Unit String Os where
   serialize _ = Codec.encode stringCodec
@@ -48,6 +55,19 @@ uname executeCommand = do
     (throwError <<< Exception.error)
     pure
     (Output.deserialize_ output)
+
+purescriptExpressionCodec
+  ∷ ∀ e. BasicCodec (Either String) (Expr e) Os
+purescriptExpressionCodec = Codec.basicCodec
+  (const $ Left "parsing error")
+  ( \(Os { name, release }) → Codegen.exprApp
+      (Codegen.exprIdent $ Ident "Os.make")
+      [ Codegen.exprRecord
+          [ "name" /\ (Output.serialize_ name)
+          , "release" /\ (Output.serialize_ release)
+          ]
+      ]
+  )
 
 stringCodec ∷ BasicCodec (Either String) String Os
 stringCodec = Codec.basicCodec decodeString encodeString
@@ -73,3 +93,6 @@ decodeString s =
 encodeString ∷ Os → String
 encodeString (Os { name, release }) =
   (NES.toString name) <> " " <> (NES.toString release)
+
+make ∷ { name ∷ NonEmptyString, release ∷ NonEmptyString } → Os
+make = Os

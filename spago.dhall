@@ -36,7 +36,6 @@ to generate this file without the comments in this block.
   , "node-process"
   , "ordered-collections"
   , "parallel"
-  , "partial"
   , "posix-types"
   , "prelude"
   , "psci-support"

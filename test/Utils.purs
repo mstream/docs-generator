@@ -5,23 +5,30 @@ import Prelude
 import Ansi as Ansi
 import Data.Argonaut as Argonaut
 import Data.Foldable as Foldable
+import Data.String.NonEmpty (NonEmptyString)
+import Data.String.NonEmpty as NES
 import Effect.Aff (Aff)
 import Execution as Execution
 import Markdown as Markdown
 import Node.Encoding (Encoding(UTF8))
 import Node.FS.Aff as FS
 import Node.Path (FilePath)
+import Node.Path as Path
 import Output as Output
 import Program (Program)
 import Shell as Shell
+import Tidy.Codegen as Codegen
 
-generateSnapshots ∷ Program Unit → FilePath → Aff Unit
-generateSnapshots program filePathBase = do
+generateSnapshots ∷ Program Unit → NonEmptyString → Aff Unit
+generateSnapshots program programName = do
   executionResult ← Execution.run program
   Foldable.traverse_
     ( \{ contents, extension, validate } → do
         let
-          filePath = filePathBase <> "." <> extension
+          filePath = Path.concat
+            [ "examples"
+            , (NES.toString programName) <> "." <> extension
+            ]
         saveSnapshot filePath contents
         validate filePath
     )
@@ -44,6 +51,13 @@ generateSnapshots program filePathBase = do
       , validate: \filePath → void
           $ Shell.executeCommand
           $ mdlCommand filePath
+      }
+    , { contents: Codegen.printModule $
+          Output.serialize programName executionResult
+      , extension: "purs"
+      , validate: \filePath → void
+          $ Shell.executeCommand
+          $ spagoBuildCommand filePath
       }
     ]
 
@@ -98,3 +112,6 @@ mdlCommand filePath = "mdl --rules "
     )
   <> " "
   <> filePath
+
+spagoBuildCommand ∷ FilePath → String
+spagoBuildCommand = append "spago build --path "

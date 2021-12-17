@@ -23,8 +23,10 @@ import Data.Tuple.Nested ((/\))
 import Docker as Docker
 import Effect.Aff (Aff)
 import Effect.Exception as Exception
-import Execution.Result (Result, Step)
+import Execution.Result (Result)
 import Execution.Result as Result
+import Execution.Result.Step (Step)
+import Execution.Result.Step as Step
 import Nix as Nix
 import Os as Os
 import Output as Output
@@ -78,7 +80,7 @@ bash command = do
   modify_ $ \state →
     state
       { steps =
-          ( List.singleton $ Result.bashCommandExecution
+          ( List.singleton $ Step.bashCommandExecution
               { input, output }
           )
             <> state.steps
@@ -90,7 +92,7 @@ comment ∷ String → StateT State Aff Unit
 comment s = do
   modify_ $ \state →
     state
-      { steps = (List.singleton $ Result.commentCreation s) <>
+      { steps = (List.singleton $ Step.commentCreation s) <>
           state.steps
       }
 

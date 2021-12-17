@@ -1,8 +1,5 @@
 module Execution.Result
   ( Result(..)
-  , Step(..)
-  , bashCommandExecution
-  , commentCreation
   , make
   ) where
 
@@ -22,12 +19,17 @@ import Data.FoldableWithIndex as FoldableWithIndex
 import Data.Generic.Rep (class Generic)
 import Data.List (List)
 import Data.Map (Map)
-import Data.Show.Generic (genericShow)
+import Data.String.NonEmpty (NonEmptyString)
+import Data.String.NonEmpty as NES
+import Data.Tuple.Nested ((/\))
+import Execution.Result.Step (Step)
 import Markdown (Markdown)
 import Markdown as Markdown
 import Os (Os)
 import Output (class Serializable)
 import Output as Output
+import PureScript.CST.Types (Expr, Ident(Ident), Module, ModuleName(ModuleName), Operator(Operator), Proper(Proper))
+import Tidy.Codegen as Codegen
 
 newtype Result = Result
   { os ∷ Os, steps ∷ List Step, versions ∷ Map String String }
@@ -37,11 +39,11 @@ derive instance Generic Result _
 instance EncodeJson Result where
   encodeJson = genericEncodeJson
 
-instance Serializable Unit String Result where
-  serialize _ = Codec.encode stringCodec
-
 instance Serializable Unit Ansi Result where
   serialize _ = Codec.encode ansiCodec
+
+instance Serializable Unit (Expr e) Result where
+  serialize _ = Codec.encode purescriptExpressionCodec
 
 instance Serializable Unit Json Result where
   serialize _ = Codec.encode jsonCodec
@@ -49,45 +51,11 @@ instance Serializable Unit Json Result where
 instance Serializable Unit Markdown Result where
   serialize _ = Codec.encode markdownCodec
 
-data Step
-  = BashCommandExecution { input ∷ String, output ∷ String }
-  | CommentCreation String
+instance Serializable NonEmptyString (Module Void) Result where
+  serialize = Codec.encode <<< purescriptModuleCodec
 
-derive instance Generic Step _
-
-instance Show Step where
-  show = genericShow
-
-instance EncodeJson Step where
-  encodeJson = genericEncodeJson
-
-instance Serializable Unit String Step where
-  serialize _ = Codec.encode $ Codec.basicCodec
-    (const $ Left "parsing error")
-    ( case _ of
-        BashCommandExecution { input, output } →
-          "> "
-            <> input
-            <> "\n"
-            <> output
-        CommentCreation s → "> # " <> s
-    )
-
-instance Serializable Unit Json Step where
-  serialize _ = Codec.encode $ Codec.basicCodec
-    (const $ Left "parsing error")
-    Argonaut.encodeJson
-
-instance Serializable Unit Ansi Step where
-  serialize _ = Codec.encode $ Codec.basicCodec
-    (const $ Left "parsing error")
-    ( case _ of
-        BashCommandExecution { input, output } →
-          (Ansi.printInput input)
-            <> Ansi.newline
-            <> (Ansi.printOutput output)
-        CommentCreation s → Ansi.printComment s
-    )
+instance Serializable Unit String Result where
+  serialize _ = Codec.encode stringCodec
 
 ansiCodec ∷ BasicCodec (Either String) Ansi Result
 ansiCodec = Codec.basicCodec
@@ -128,6 +96,84 @@ markdownCodec = Codec.basicCodec
   (const $ Left "parsing error")
   (Markdown.codeBlock <<< Output.serialize_)
 
+purescriptModuleCodec
+  ∷ NonEmptyString → BasicCodec (Either String) (Module Void) Result
+
+purescriptModuleCodec moduleName = Codec.basicCodec
+  (const $ Left "parsing error")
+  ( \result →
+      let
+        resultIdent = Ident "result"
+      in
+        Codegen.module_
+          (ModuleName $ NES.toString moduleName)
+          [ Codegen.exportValue resultIdent ]
+          [ Codegen.declImportAs
+              (ModuleName "Data.List")
+              []
+              (ModuleName "List")
+          , Codegen.declImportAs
+              (ModuleName "Data.Map")
+              []
+              (ModuleName "Map")
+          , Codegen.declImport
+              (ModuleName "Data.String.NonEmpty")
+              [ Codegen.importValue $ Ident "nes" ]
+          , Codegen.declImport
+              (ModuleName "Execution.Result")
+              [ Codegen.importType $ Proper "Result" ]
+          , Codegen.declImportAs
+              (ModuleName "Execution.Result")
+              []
+              (ModuleName "Result")
+          , Codegen.declImportAs
+              (ModuleName "Os")
+              []
+              (ModuleName "Os")
+          , Codegen.declImport
+              (ModuleName "Type.Proxy")
+              [ Codegen.importTypeMembers
+                  (Proper "Proxy")
+                  [ Proper "Proxy" ]
+              ]
+          , Codegen.declImportAs
+              (ModuleName "Execution.Result.Step")
+              []
+              (ModuleName "Step")
+          , Codegen.declImport
+              (ModuleName "Data.Tuple.Nested")
+              [ Codegen.importOp $ Operator "/\\" ]
+          ]
+          [ Codegen.declSignature
+              resultIdent
+              (Codegen.typeCtor $ Proper "Result")
+          , Codegen.declValue resultIdent
+              []
+              (Output.serialize_ result ∷ Expr _)
+          ]
+  )
+
+purescriptExpressionCodec
+  ∷ ∀ e. BasicCodec (Either String) (Expr e) Result
+
+purescriptExpressionCodec = Codec.basicCodec
+  (const $ Left "parsing error")
+  ( \(Result { os, steps, versions }) → Codegen.exprApp
+      (Codegen.exprIdent $ Ident "Result.make")
+      [ Codegen.exprRecord
+          [ "os" /\ (Output.serialize_ os ∷ Expr _)
+          , "steps" /\
+              ( Codegen.exprApp
+                  (Codegen.exprIdent $ Ident "List.fromFoldable")
+                  [ Codegen.exprArray $ Array.fromFoldable $
+                      Output.serialize_ <$> steps
+                  ]
+              )
+          , "versions" /\ (Output.serialize_ versions)
+          ]
+      ]
+  )
+
 stringCodec ∷ BasicCodec (Either String) String Result
 stringCodec = Codec.basicCodec
   (const $ Left "parsing error")
@@ -154,12 +200,6 @@ stringCodec = Codec.basicCodec
               )
           )
   )
-
-bashCommandExecution ∷ { input ∷ String, output ∷ String } → Step
-bashCommandExecution = BashCommandExecution
-
-commentCreation ∷ String → Step
-commentCreation = CommentCreation
 
 make
   ∷ { os ∷ Os, steps ∷ List Step, versions ∷ Map String String }

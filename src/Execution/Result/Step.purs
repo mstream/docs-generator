@@ -2,6 +2,7 @@ module Execution.Result.Step
   ( Step(..)
   , bashCommandExecution
   , commentCreation
+  , map
   ) where
 
 import Prelude
@@ -97,3 +98,15 @@ purescriptExpressionCodec = Codec.basicCodec
           (Codegen.exprIdent $ Ident "Step.commentCreation")
           [ Codegen.exprString s ]
   )
+
+map
+  ∷ ∀ a
+  . { bashCommandExecution ∷ { input ∷ String, output ∷ String } → a
+    , commentCreation ∷ String → a
+    }
+  → Step
+  → a
+map { bashCommandExecution, commentCreation } = case _ of
+  BashCommandExecution { input, output } →
+    bashCommandExecution { input, output }
+  CommentCreation s → commentCreation s

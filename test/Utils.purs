@@ -4,7 +4,11 @@ import Prelude
 
 import Ansi as Ansi
 import Data.Argonaut as Argonaut
+import Data.Array.NonEmpty (NonEmptyArray)
+import Data.Array.NonEmpty as NEA
 import Data.Foldable as Foldable
+import Data.NonEmpty ((:|))
+import Data.Semigroup.Foldable as Foldable1
 import Data.String.NonEmpty (NonEmptyString)
 import Data.String.NonEmpty as NES
 import Effect.Aff (Aff)
@@ -18,15 +22,20 @@ import Output as Output
 import Program (Program)
 import Shell as Shell
 import Tidy.Codegen as Codegen
+import Type.Proxy (Proxy(Proxy))
 
-generateSnapshots ∷ Program Unit → NonEmptyString → Aff Unit
+generateSnapshots
+  ∷ Program Unit
+  → NonEmptyString
+  → Aff Unit
 generateSnapshots program programName = do
   executionResult ← Execution.run program
   Foldable.traverse_
     ( \{ contents, extension, validate } → do
         let
           filePath = Path.concat
-            [ "examples"
+            [ "example"
+            , "generated"
             , (NES.toString programName) <> "." <> extension
             ]
         saveSnapshot filePath contents
@@ -53,7 +62,17 @@ generateSnapshots program programName = do
           $ mdlCommand filePath
       }
     , { contents: Codegen.printModule $
-          Output.serialize programName executionResult
+          Output.serialize
+            ( ( Foldable1.foldMap1
+                  (\prefix → NES.appendString prefix ".")
+                  ( NEA.fromNonEmpty $
+                      NES.nes (Proxy ∷ Proxy "Example") :|
+                        [ NES.nes (Proxy ∷ Proxy "Results") ]
+                  )
+              ) <>
+                programName
+            )
+            executionResult
       , extension: "purs"
       , validate: \filePath → void
           $ Shell.executeCommand
@@ -62,8 +81,10 @@ generateSnapshots program programName = do
     ]
 
 saveSnapshot ∷ FilePath → String → Aff Unit
-saveSnapshot filePath contents =
-  FS.writeTextFile UTF8 filePath contents
+saveSnapshot filePath contents = FS.writeTextFile
+  UTF8
+  filePath
+  contents
 
 jqCommand ∷ FilePath → String
 jqCommand = append "jq . "

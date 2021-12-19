@@ -10,6 +10,9 @@ module Output
 import Prelude
 
 import Data.Either.Nested (type (\/))
+import Data.Foldable as Foldable
+import Data.FoldableWithIndex as FoldableWithIndex
+import Data.List (List)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.String.NonEmpty (NonEmptyString)
@@ -65,3 +68,20 @@ instance
   serialize _ kvs = Codegen.exprApp
     (Codegen.exprIdent $ Ident "Map.fromFoldable")
     [ Codegen.exprArray $ serialize_ <$> Map.toUnfoldable kvs ]
+
+instance
+  Serializable Unit String a ⇒
+  Serializable Unit String (List a) where
+  serialize _ = Foldable.foldMap $ \x →
+    serialize_ x <> "\n"
+
+instance
+  ( Serializable Unit String k
+  , Serializable Unit String v
+  ) ⇒
+  Serializable Unit String (Map k v) where
+  serialize _ = FoldableWithIndex.foldMapWithIndex $ \k v →
+    serialize_ k <> ": " <> serialize_ v <> "\n"
+
+instance Serializable Unit String String where
+  serialize _ = identity

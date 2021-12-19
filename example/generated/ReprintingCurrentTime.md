@@ -1,3 +1,4 @@
+```
 > # OS info: Linux 5.10.47-linuxkit
 
 > # Program versions
@@ -5,8 +6,10 @@
 
 > # Obtaining the current time
 > date
-Fri Dec 17 15:00:23 UTC 2021
+Sun Dec 19 13:40:19 UTC 2021
 
 > # Printing it back
-> echo 'the time was: Fri Dec 17 15:00:23 UTC 2021'
-the time was: Fri Dec 17 15:00:23 UTC 2021
+> echo 'the time was: Sun Dec 19 13:40:19 UTC 2021'
+the time was: Sun Dec 19 13:40:19 UTC 2021
+
+```

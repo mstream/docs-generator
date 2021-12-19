@@ -1,6 +1,9 @@
 module Execution.Result
   ( Result(..)
   , make
+  , os
+  , steps
+  , versions
   ) where
 
 import Prelude
@@ -28,7 +31,14 @@ import Markdown as Markdown
 import Os (Os)
 import Output (class Serializable)
 import Output as Output
-import PureScript.CST.Types (Expr, Ident(Ident), Module, ModuleName(ModuleName), Operator(Operator), Proper(Proper))
+import PureScript.CST.Types
+  ( Expr
+  , Ident(Ident)
+  , Module
+  , ModuleName(ModuleName)
+  , Operator(Operator)
+  , Proper(Proper)
+  )
 import Tidy.Codegen as Codegen
 
 newtype Result = Result
@@ -155,7 +165,6 @@ purescriptModuleCodec moduleName = Codec.basicCodec
 
 purescriptExpressionCodec
   ∷ ∀ e. BasicCodec (Either String) (Expr e) Result
-
 purescriptExpressionCodec = Codec.basicCodec
   (const $ Left "parsing error")
   ( \(Result { os, steps, versions }) → Codegen.exprApp
@@ -165,8 +174,10 @@ purescriptExpressionCodec = Codec.basicCodec
           , "steps" /\
               ( Codegen.exprApp
                   (Codegen.exprIdent $ Ident "List.fromFoldable")
-                  [ Codegen.exprArray $ Array.fromFoldable $
-                      Output.serialize_ <$> steps
+                  [ Codegen.exprArray
+                      $ Array.reverse
+                      $ Array.fromFoldable
+                      $ Output.serialize_ <$> steps
                   ]
               )
           , "versions" /\ (Output.serialize_ versions)
@@ -205,3 +216,12 @@ make
   ∷ { os ∷ Os, steps ∷ List Step, versions ∷ Map String String }
   → Result
 make = Result
+
+os ∷ Result → Os
+os (Result { os }) = os
+
+steps ∷ Result → List Step
+steps (Result { steps }) = steps
+
+versions ∷ Result → Map String String
+versions (Result { versions }) = versions
